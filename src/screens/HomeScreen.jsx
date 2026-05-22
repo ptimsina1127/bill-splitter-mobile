@@ -5,33 +5,27 @@ import {
 import api from '../api/client';
 
 export default function HomeScreen({ navigation }) {
-  const [joinId, setJoinId] = useState('');
-  const [shortCode, setShortCode] = useState('');
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
-    const id = joinId.trim();
-    if (!id) { Alert.alert('Required', 'Enter a session ID'); return; }
+    const val = input.trim();
+    if (!val) { Alert.alert('Required', 'Enter a session ID or short code'); return; }
     setLoading(true);
     try {
-      const { data } = await api.get(`/sessions/${id}`);
+      const isShort = val.length <= 10;
+      const endpoint = isShort ? `/sessions/by-short-code/${val}` : `/sessions/${val}`;
+      const { data } = await api.get(endpoint);
       navigation.navigate('Session', { sessionId: data.id, sessionName: data.name });
     } catch (e) {
-      Alert.alert('Not found', 'No session with that ID.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJoinShort = async () => {
-    const code = shortCode.trim();
-    if (!code) { Alert.alert('Required', 'Enter a short code'); return; }
-    setLoading(true);
-    try {
-      const { data } = await api.get(`/sessions/by-short-code/${code}`);
-      navigation.navigate('Session', { sessionId: data.id, sessionName: data.name });
-    } catch (e) {
-      Alert.alert('Not found', 'No session with that code.');
+      // fallback: try the other endpoint type
+      try {
+        const fallback = val.length <= 10 ? `/sessions/${val}` : `/sessions/by-short-code/${val}`;
+        const { data } = await api.get(fallback);
+        navigation.navigate('Session', { sessionId: data.id, sessionName: data.name });
+      } catch (_) {
+        Alert.alert('Not found', 'No session with that ID or code.');
+      }
     } finally {
       setLoading(false);
     }
@@ -55,41 +49,23 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.line} />
       </View>
 
-      <Text style={styles.joinLabel}>Join by Session ID</Text>
+      <Text style={styles.joinLabel}>Session ID or Short Code</Text>
       <TextInput
         style={styles.input}
-        placeholder="Paste session ID"
+        placeholder="Paste ID or code e.g. a95FN"
         placeholderTextColor="#94a3b8"
-        value={joinId}
-        onChangeText={setJoinId}
-        returnKeyType="done"
+        autoCapitalize="none"
+        value={input}
+        onChangeText={setInput}
+        returnKeyType="join"
         onSubmitEditing={handleJoin}
       />
       <TouchableOpacity
-        style={[styles.secondaryButton, loading && { opacity: 0.5 }]}
+        style={[styles.joinBtn, loading && { opacity: 0.5 }]}
         onPress={handleJoin}
         disabled={loading}
       >
-        <Text style={styles.secondaryButtonText}>Join Session</Text>
-      </TouchableOpacity>
-
-      <Text style={[styles.joinLabel, { marginTop: 16 }]}>Join by Short Code</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. a95FN"
-        placeholderTextColor="#94a3b8"
-        autoCapitalize="none"
-        value={shortCode}
-        onChangeText={setShortCode}
-        returnKeyType="done"
-        onSubmitEditing={handleJoinShort}
-      />
-      <TouchableOpacity
-        style={[styles.secondaryButton, loading && { opacity: 0.5 }]}
-        onPress={handleJoinShort}
-        disabled={loading}
-      >
-        <Text style={styles.secondaryButtonText}>Join by Code</Text>
+        <Text style={styles.joinBtnText}>{loading ? 'Joining...' : 'Join Session'}</Text>
       </TouchableOpacity>
     </Pressable>
   );
@@ -116,9 +92,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 16, fontSize: 16,
     width: '100%', backgroundColor: '#fff', marginBottom: 8,
   },
-  secondaryButton: {
-    borderWidth: 1, borderColor: '#3b82f6', paddingVertical: 14,
-    borderRadius: 12, width: '100%', alignItems: 'center', marginBottom: 4,
+  joinBtn: {
+    backgroundColor: '#3b82f6', paddingVertical: 14,
+    borderRadius: 12, width: '100%', alignItems: 'center',
   },
-  secondaryButtonText: { color: '#3b82f6', fontSize: 16, fontWeight: '600' },
+  joinBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
