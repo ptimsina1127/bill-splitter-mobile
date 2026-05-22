@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, RefreshControl, Share,
-  Keyboard, Pressable,
+  Keyboard, Pressable, Image, Modal,
 } from 'react-native';
 import api from '../api/client';
 import ParticipantCard from '../components/ParticipantCard';
@@ -13,6 +13,7 @@ export default function SessionScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [settlement, setSettlement] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [showQR, setShowQR] = useState(false);
 
   const fetch = useCallback(async () => {
     try {
@@ -39,13 +40,14 @@ export default function SessionScreen({ route, navigation }) {
     }
   };
 
-  const WEB_URL = `https://khoipaisa.duckdns.org/session/${sessionId}`;
+  const handleLeave = () => navigation.popToTop();
+
+  const shortUrl = session?.shortCode ? `https://khoipaisa.duckdns.org/s/${session.shortCode}` : null;
 
   const shareSession = async () => {
-    let msg = `Bill Splitter — ${session.name}\n` +
-      `Session: ${sessionId}\n\n`;
-
-    if (session.items && session.items.length > 0) {
+    const link = shortUrl || `https://khoipaisa.duckdns.org/session/${sessionId}`;
+    let msg = `Bill Splitter — ${session.name}\nSession: ${sessionId}\n\n`;
+    if (session.items?.length) {
       msg += 'Expenses:\n';
       session.items.forEach(item => {
         const payer = sortedParticipants.find(p => p.id === item.paidByParticipantId);
@@ -53,18 +55,15 @@ export default function SessionScreen({ route, navigation }) {
       });
       msg += '\n';
     }
-
-    msg += `${session.participants?.length || 0} participants\n` +
-      `Open in app: ${WEB_URL}`;
+    msg += `${session.participants?.length || 0} participants\nOpen in app: ${link}`;
     try { await Share.share({ message: msg }); } catch (_) {}
   };
 
   const shareSettlement = async () => {
     if (!settlement) return;
-    let msg = `Bill Splitter — ${session.name}\n` +
-      `Session: ${sessionId}\n\n`;
-
-    if (session.items && session.items.length > 0) {
+    const link = shortUrl || `https://khoipaisa.duckdns.org/session/${sessionId}`;
+    let msg = `Bill Splitter — ${session.name}\nSession: ${sessionId}\n\n`;
+    if (session.items?.length) {
       msg += 'Expenses:\n';
       session.items.forEach(item => {
         const payer = sortedParticipants.find(p => p.id === item.paidByParticipantId);
@@ -72,20 +71,17 @@ export default function SessionScreen({ route, navigation }) {
       });
       msg += '\n';
     }
-
     msg += `Total: $${Number(settlement.totalExpenses).toFixed(2)}\n`;
-    if (settlement.debts && settlement.debts.length > 0) {
+    if (settlement.debts?.length) {
       settlement.debts.forEach(d => {
         msg += `${d.fromParticipantName} pays $${Number(d.amount).toFixed(2)} to ${d.toParticipantName}\n`;
       });
     } else {
       msg += 'Everyone is settled up!\n';
     }
-    msg += `Open in app: ${WEB_URL}`;
+    msg += `Open in app: ${link}`;
     try { await Share.share({ message: msg }); } catch (_) {}
   };
-
-  const handleLeave = () => navigation.popToTop();
 
   if (loading) return <ActivityIndicator style={{ marginTop: 60 }} />;
   if (!session) return <Text style={{ textAlign: 'center', marginTop: 60, color: '#94a3b8' }}>Session not found</Text>;
@@ -114,6 +110,14 @@ export default function SessionScreen({ route, navigation }) {
             <Text style={styles.badgeText}>{session.participants?.length || 0} Participants</Text>
           </View>
           <Text style={styles.idText}>ID: {sessionId.slice(0, 8)}...</Text>
+          {session.shortCode && (
+            <>
+              <Text style={styles.shortCodeText}>/{session.shortCode}</Text>
+              <TouchableOpacity onPress={() => setShowQR(true)} style={styles.qrBtn}>
+                <Text style={styles.qrBtnText}>QR</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </View>
 
@@ -187,6 +191,18 @@ export default function SessionScreen({ route, navigation }) {
         )}
       </View>
     </ScrollView>
+      <Modal visible={showQR} transparent animationType="fade">
+        <Pressable style={styles.qrOverlay} onPress={() => setShowQR(false)}>
+          <Pressable style={styles.qrModal}>
+            <Text style={styles.qrTitle}>Share Session</Text>
+            <Image
+              source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shortUrl)}` }}
+              style={styles.qrImage}
+            />
+            <Text style={styles.qrUrl}>{shortUrl}</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Pressable>
   );
 }
@@ -209,6 +225,11 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
   badgeText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
   idText: { fontSize: 11, color: '#94a3b8' },
+  shortCodeText: { fontSize: 11, fontFamily: 'monospace', color: '#0ea5e9', fontWeight: '600' },
+  qrBtn: {
+    backgroundColor: '#0ea5e9', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  qrBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   grid: { padding: 12 },
   settleSection: { paddingHorizontal: 16, paddingTop: 8 },
   settleHeader: {
@@ -260,4 +281,12 @@ const styles = StyleSheet.create({
     borderRadius: 10, alignItems: 'center',
   },
   calcBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  qrOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
+  qrModal: {
+    backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center',
+    width: '80%', maxWidth: 320,
+  },
+  qrTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 16 },
+  qrImage: { width: 200, height: 200, borderRadius: 8, marginBottom: 12 },
+  qrUrl: { fontSize: 12, fontFamily: 'monospace', color: '#64748b', textAlign: 'center' },
 });

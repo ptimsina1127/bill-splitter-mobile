@@ -5,12 +5,22 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f8fafc"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ptimsina.billsplitter"
     },
     "android": {
-      "package": "com.ptimsina.billsplitter"
+      "package": "com.ptimsina.billsplitter",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0ea5e9"
+      }
     },
     "plugins": []
   }

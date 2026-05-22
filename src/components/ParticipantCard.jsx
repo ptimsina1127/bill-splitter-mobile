@@ -69,6 +69,18 @@ export default function ParticipantCard({ participant, items, allParticipants, s
     ]);
   };
 
+  const deleteParticipant = () => {
+    Alert.alert('Remove', `Remove ${participant.name} from this session?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: async () => {
+        try {
+          await api.delete(`/sessions/${sessionId}/participants/${participant.id}`);
+          onUpdate();
+        } catch (e) { Alert.alert('Error', 'Failed to remove participant'); }
+      }},
+    ]);
+  };
+
   const addExpense = async () => {
     if (!newDesc.trim() || !newAmt) return;
     const amount = parseFloat(newAmt);
@@ -136,6 +148,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity onPress={deleteParticipant} style={styles.deleteBtn}>
+          <Text style={styles.deleteText}>✕</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Expenses list */}
