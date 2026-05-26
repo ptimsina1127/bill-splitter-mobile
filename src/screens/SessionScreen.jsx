@@ -39,9 +39,7 @@ export default function SessionScreen({ route, navigation }) {
     try {
       const { data } = await api.post(`/sessions/${sessionId}/calculate`);
       setSettlement(data);
-    } catch (e) {
-      Alert.alert('Error', 'Add some expenses first');
-    } finally {
+    } catch {} finally {
       setCalcLoading(false);
     }
   };
@@ -176,8 +174,8 @@ export default function SessionScreen({ route, navigation }) {
               <TouchableOpacity style={styles.shareBtn} onPress={shareSettlement}>
                 <Text style={styles.shareBtnText}>Share</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.recalcBtn} onPress={calculate}>
-                <Text style={styles.recalcText}>Recalculate</Text>
+              <TouchableOpacity style={styles.recalcBtn} onPress={calculate} disabled={calcLoading}>
+                <Text style={styles.recalcText}>{calcLoading ? 'Recalculating...' : 'Recalculate'}</Text>
               </TouchableOpacity>
             </View>
           </View>
