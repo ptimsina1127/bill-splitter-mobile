@@ -19,6 +19,12 @@ export default function SessionScreen({ route, navigation }) {
     try {
       const { data } = await api.get(`/sessions/${sessionId}`);
       setSession(data);
+      if (data.items.length > 0) {
+        try {
+          const { data: settlementData } = await api.post(`/sessions/${sessionId}/calculate`);
+          setSettlement(settlementData);
+        } catch {}
+      }
     } catch (e) {
       Alert.alert('Error', 'Failed to load session');
     } finally {
@@ -141,8 +147,8 @@ export default function SessionScreen({ route, navigation }) {
           <View>
             <View style={styles.settleHeader}>
               <Text style={styles.settleTitle}>Settlements</Text>
-              <TouchableOpacity onPress={() => setSettlement(null)}>
-                <Text style={styles.settleClose}>Close</Text>
+              <TouchableOpacity onPress={calculate}>
+                <Text style={styles.settleClose}>Recalculate</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.totalBar}>
