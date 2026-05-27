@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import api from '../api/client';
 
-export default function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate }) {
+export default function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -26,12 +26,13 @@ export default function ParticipantCard({ participant, items, allParticipants, s
   const startEdit = (field, current) => {
     setEditing(field);
     setEditVal(current);
+    onEditingChange(true);
   };
 
   const saveEdit = async () => {
     if (!editing) return;
     const val = editVal.trim();
-    if (!val) { setEditing(null); return; }
+    if (!val) { setEditing(null); onEditingChange(false); return; }
 
     try {
       if (editing.type === 'name') {
@@ -43,17 +44,19 @@ export default function ParticipantCard({ participant, items, allParticipants, s
         });
       } else if (editing.type === 'amount') {
         const num = parseFloat(val);
-        if (isNaN(num) || num <= 0) { setEditing(null); return; }
+        if (isNaN(num) || num <= 0) { setEditing(null); onEditingChange(false); return; }
         await api.put(`/sessions/${sessionId}/items/${editing.itemId}`, {
           ...editing.orig,
           amount: num,
         });
       }
       setEditing(null);
+      onEditingChange(false);
       onUpdate();
     } catch (e) {
       Alert.alert('Error', 'Failed to save');
       setEditing(null);
+      onEditingChange(false);
     }
   };
 
@@ -94,6 +97,7 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       if (newShared.length > 0) body.sharedWithParticipantIds = newShared;
       await api.post(`/sessions/${sessionId}/items`, body);
       setNewDesc(''); setNewAmt(''); setNewShared([]); setShowAdd(false);
+      onEditingChange(false);
       onUpdate();
     } catch (e) {
       Alert.alert('Error', 'Failed to add expense');
@@ -267,16 +271,16 @@ export default function ParticipantCard({ participant, items, allParticipants, s
             ))}
           </View>
           <View style={styles.addActions}>
-            <TouchableOpacity onPress={() => { setShowAdd(false); setNewDesc(''); setNewAmt(''); setNewShared([]); }}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setShowAdd(false); setNewDesc(''); setNewAmt(''); setNewShared([]); onEditingChange(false); }}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
             <TouchableOpacity onPress={addExpense} style={styles.addBtn}>
               <Text style={styles.addBtnText}>Add</Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.addExpBtn} onPress={() => setShowAdd(true)}>
+        <TouchableOpacity style={styles.addExpBtn} onPress={() => { setShowAdd(true); onEditingChange(true); }}>
           <Text style={styles.addExpText}>+ Add Expense</Text>
         </TouchableOpacity>
       )}

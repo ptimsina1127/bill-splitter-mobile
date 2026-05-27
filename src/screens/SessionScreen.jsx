@@ -13,7 +13,25 @@ export default function SessionScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [settlement, setSettlement] = useState(null);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [editCount, setEditCount] = useState(0);
+  const [settlementDismissed, setSettlementDismissed] = useState(false);
   const [showQR, setShowQR] = useState(false);
+
+  const handleEditingChange = (editing) => {
+    setEditCount(prev => editing ? prev + 1 : Math.max(0, prev - 1));
+    if (editing) setSettlementDismissed(true);
+  };
+
+  const handleRecalculate = async () => {
+    setSettlementDismissed(false);
+    setCalcLoading(true);
+    try {
+      const { data } = await api.post(`/sessions/${sessionId}/calculate`);
+      setSettlement(data);
+    } catch {} finally {
+      setCalcLoading(false);
+    }
+  };
 
   const fetch = useCallback(async () => {
     try {
@@ -113,15 +131,11 @@ export default function SessionScreen({ route, navigation }) {
             <View style={styles.dot} />
             <Text style={styles.badgeText}>{session.participants?.length || 0} Participants</Text>
           </View>
-          <Text style={styles.idText}>ID: {sessionId.slice(0, 8)}...</Text>
-          {session.shortCode && (
-            <>
-              <Text style={styles.shortCodeText}>/{session.shortCode}</Text>
-              <TouchableOpacity onPress={() => setShowQR(true)} style={styles.qrBtn}>
-                <Text style={styles.qrBtnText}>QR</Text>
-              </TouchableOpacity>
-            </>
-          )}
+          <View style={[styles.saveBadge, editCount > 0 ? styles.unsavedBadge : styles.savedBadge]}>
+            <Text style={[styles.saveBadgeText, editCount > 0 ? styles.unsavedText : styles.savedText]}>
+              {editCount > 0 ? 'Unsaved' : 'Saved'}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -135,13 +149,40 @@ export default function SessionScreen({ route, navigation }) {
             allParticipants={sortedParticipants}
             sessionId={sessionId}
             onUpdate={fetch}
+            onEditingChange={handleEditingChange}
           />
         ))}
       </View>
 
+      {/* Share card */}
+      {session.shortCode && (
+        <View style={styles.shareCard}>
+          <Text style={styles.shareCardTitle}>Share with Friends</Text>
+          <View style={styles.shareCardRow}>
+            <Text style={styles.shareCardUrl} numberOfLines={1}>{shortUrl}</Text>
+            <View style={styles.shareCardActions}>
+              <TouchableOpacity onPress={shareSession} style={styles.shareIconBtn}>
+                <Text style={styles.shareIconText}>Share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowQR(true)} style={styles.shareIconBtn}>
+                <Text style={styles.shareIconText}>QR</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Settlement section */}
       <View style={styles.settleSection}>
-        {settlement ? (
+        {settlementDismissed ? (
+          <View style={styles.settlePrompt}>
+            <Text style={styles.settlePromptTitle}>Resettlement needed</Text>
+            <Text style={styles.settlePromptSub}>New changes detected. Tap Recalculate to update.</Text>
+            <TouchableOpacity style={styles.calcBtn} onPress={handleRecalculate} disabled={calcLoading}>
+              <Text style={styles.calcBtnText}>{calcLoading ? 'Recalculating...' : 'Recalculate'}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : settlement ? (
           <View>
             <View style={styles.settleHeader}>
               <Text style={styles.settleTitle}>Settlements</Text>
@@ -228,12 +269,22 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
   badgeText: { fontSize: 13, color: '#64748b', fontWeight: '500' },
-  idText: { fontSize: 11, color: '#94a3b8' },
-  shortCodeText: { fontSize: 11, fontFamily: 'monospace', color: '#0ea5e9', fontWeight: '600' },
-  qrBtn: {
-    backgroundColor: '#0ea5e9', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  shareCard: {
+    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginHorizontal: 16, marginTop: 4,
+    borderWidth: 1, borderColor: '#e2e8f0',
   },
-  qrBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  shareCardTitle: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 10 },
+  shareCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  shareCardUrl: {
+    fontSize: 11, fontFamily: 'monospace', color: '#0ea5e9', fontWeight: '600',
+    backgroundColor: '#e0f2fe', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    flex: 1, marginRight: 10, overflow: 'hidden',
+  },
+  shareCardActions: { flexDirection: 'row', gap: 8, flexShrink: 0 },
+  shareIconBtn: {
+    backgroundColor: '#0ea5e9', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  shareIconText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   grid: { padding: 12 },
   settleSection: { paddingHorizontal: 16, paddingTop: 8 },
   settleHeader: {
@@ -293,4 +344,10 @@ const styles = StyleSheet.create({
   qrTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 16 },
   qrImage: { width: 200, height: 200, borderRadius: 8, marginBottom: 12 },
   qrUrl: { fontSize: 12, fontFamily: 'monospace', color: '#64748b', textAlign: 'center' },
+  saveBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 4 },
+  unsavedBadge: { backgroundColor: '#fff7ed' },
+  savedBadge: { backgroundColor: '#f0fdf4' },
+  saveBadgeText: { fontSize: 10, fontWeight: '700' },
+  unsavedText: { color: '#ea580c' },
+  savedText: { color: '#16a34a' },
 });
