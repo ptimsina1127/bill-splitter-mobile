@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, RefreshControl, Share,
   Keyboard, Pressable, Image, Modal,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import api from '../api/client';
 import ParticipantCard from '../components/ParticipantCard';
 
@@ -78,7 +79,12 @@ export default function SessionScreen({ route, navigation }) {
       msg += '\n';
     }
     msg += `${session.participants?.length || 0} participants\nOpen in app: ${link}`;
-    try { await Share.share({ message: msg }); } catch (_) {}
+    try {
+      await Share.share({ message: msg });
+    } catch (_) {
+      await Clipboard.setStringAsync(link);
+      Alert.alert('Link Copied', `Session link copied to clipboard!\n\n${link}`);
+    }
   };
 
   const shareSettlement = async () => {
@@ -102,7 +108,12 @@ export default function SessionScreen({ route, navigation }) {
       msg += 'Everyone is settled up!\n';
     }
     msg += `Open in app: ${link}`;
-    try { await Share.share({ message: msg }); } catch (_) {}
+    try {
+      await Share.share({ message: msg });
+    } catch (_) {
+      await Clipboard.setStringAsync(msg);
+      Alert.alert('Link Copied', 'Settlement details copied to clipboard!');
+    }
   };
 
   if (loading) return <ActivityIndicator style={{ marginTop: 60 }} />;
