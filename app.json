@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.ptimsina.billsplitter",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0ea5e9"

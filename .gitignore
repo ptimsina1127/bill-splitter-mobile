@@ -1,7 +1,8 @@
 node_modules/
 .expo/
 dist/
-*.tsbuildinfo
+*.ts
+google-service-account.jsonbuildinfo
 *.jks
 *.p8
 *.p12
