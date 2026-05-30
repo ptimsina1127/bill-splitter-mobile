@@ -19,7 +19,7 @@
       "package": "com.ptimsina.billsplitter",
       "versionCode": 4,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0ea5e9"
       }
     },
