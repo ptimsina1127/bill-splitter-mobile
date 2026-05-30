@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, RefreshControl, Share,
+  ActivityIndicator, Alert, RefreshControl,
   Keyboard, Pressable, Image, Modal,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -69,50 +69,11 @@ export default function SessionScreen({ route, navigation }) {
 
   const shareSession = async () => {
     const link = shortUrl || `https://khoipaisa.duckdns.org/session/${sessionId}`;
-    let msg = `Bill Splitter — ${session.name}\nSession: ${sessionId}\n\n`;
-    if (session.items?.length) {
-      msg += 'Expenses:\n';
-      session.items.forEach(item => {
-        const payer = sortedParticipants.find(p => p.id === item.paidByParticipantId);
-        msg += `  ${payer?.name || '?'} paid $${Number(item.amount).toFixed(2)} for ${item.description}\n`;
-      });
-      msg += '\n';
-    }
-    msg += `${session.participants?.length || 0} participants\nOpen in app: ${link}`;
     await Clipboard.setStringAsync(link);
-    try {
-      await Share.share({ message: msg });
-    } catch (_) {}
     Alert.alert('Link Copied', `Session link copied to clipboard!\n\n${link}`);
   };
 
-  const shareSettlement = async () => {
-    if (!settlement) return;
-    const link = shortUrl || `https://khoipaisa.duckdns.org/session/${sessionId}`;
-    let msg = `Bill Splitter — ${session.name}\nSession: ${sessionId}\n\n`;
-    if (session.items?.length) {
-      msg += 'Expenses:\n';
-      session.items.forEach(item => {
-        const payer = sortedParticipants.find(p => p.id === item.paidByParticipantId);
-        msg += `  ${payer?.name || '?'} paid $${Number(item.amount).toFixed(2)} for ${item.description}\n`;
-      });
-      msg += '\n';
-    }
-    msg += `Total: $${Number(settlement.totalExpenses).toFixed(2)}\n`;
-    if (settlement.debts?.length) {
-      settlement.debts.forEach(d => {
-        msg += `${d.fromParticipantName} pays $${Number(d.amount).toFixed(2)} to ${d.toParticipantName}\n`;
-      });
-    } else {
-      msg += 'Everyone is settled up!\n';
-    }
-    msg += `Open in app: ${link}`;
-    await Clipboard.setStringAsync(msg);
-    try {
-      await Share.share({ message: msg });
-    } catch (_) {}
-    Alert.alert('Link Copied', 'Settlement details copied to clipboard!');
-  };
+  
 
   if (loading) return <ActivityIndicator style={{ marginTop: 60 }} />;
   if (!session) return <Text style={{ textAlign: 'center', marginTop: 60, color: '#94a3b8' }}>Session not found</Text>;
@@ -194,12 +155,6 @@ export default function SessionScreen({ route, navigation }) {
           </View>
         ) : settlement ? (
           <View>
-            <View style={styles.settleHeader}>
-              <Text style={styles.settleTitle}>Settlements</Text>
-              <TouchableOpacity onPress={calculate}>
-                <Text style={styles.settleClose}>Recalculate</Text>
-              </TouchableOpacity>
-            </View>
             <View style={styles.totalBar}>
               <Text style={styles.totalLabel}>Total Expenses</Text>
               <Text style={styles.totalAmount}>${Number(settlement.totalExpenses).toFixed(2)}</Text>
@@ -221,14 +176,9 @@ export default function SessionScreen({ route, navigation }) {
             ) : (
               <Text style={styles.settleEmpty}>Everything is already settled!</Text>
             )}
-            <View style={styles.settleActions}>
-              <TouchableOpacity style={styles.shareBtn} onPress={shareSettlement}>
-                <Text style={styles.shareBtnText}>Share</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.recalcBtn} onPress={calculate} disabled={calcLoading}>
-                <Text style={styles.recalcText}>{calcLoading ? 'Recalculating...' : 'Recalculate'}</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.recalcBtn} onPress={calculate} disabled={calcLoading}>
+              <Text style={styles.recalcText}>{calcLoading ? 'Recalculating...' : 'Recalculate'}</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.settlePrompt}>
@@ -297,11 +247,7 @@ const styles = StyleSheet.create({
   shareIconText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   grid: { padding: 12 },
   settleSection: { paddingHorizontal: 16, paddingTop: 8 },
-  settleHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10,
-  },
-  settleTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b' },
-  settleClose: { fontSize: 14, color: '#0ea5e9', fontWeight: '600' },
+
   totalBar: {
     backgroundColor: '#059669', borderRadius: 12, padding: 14,
     alignItems: 'center', marginBottom: 12,
@@ -330,7 +276,8 @@ const styles = StyleSheet.create({
   },
   shareBtnText: { color: '#0ea5e9', fontSize: 14, fontWeight: '600' },
   recalcBtn: {
-    flex: 1, borderWidth: 1, borderColor: '#0ea5e9', borderRadius: 10,
+    alignSelf: 'center', paddingHorizontal: 32,
+    borderWidth: 1, borderColor: '#0ea5e9', borderRadius: 10,
     paddingVertical: 12, alignItems: 'center',
   },
   recalcText: { color: '#0ea5e9', fontSize: 14, fontWeight: '600' },
