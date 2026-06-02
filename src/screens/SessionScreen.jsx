@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import api from '../api/client';
+import { APP_BASE_URL } from '../config';
 import ParticipantCard from '../components/ParticipantCard';
 
 export default function SessionScreen({ route, navigation }) {
@@ -65,10 +66,10 @@ export default function SessionScreen({ route, navigation }) {
 
   const handleLeave = () => navigation.popToTop();
 
-  const shortUrl = session?.shortCode ? `https://khoipaisa.duckdns.org/s/${session.shortCode}` : null;
+  const shortUrl = session?.shortCode ? `${APP_BASE_URL}/s/${session.shortCode}` : null;
 
   const shareSession = async () => {
-    const link = shortUrl || `https://khoipaisa.duckdns.org/session/${sessionId}`;
+    const link = shortUrl || `${APP_BASE_URL}/session/${sessionId}`;
     await Clipboard.setStringAsync(link);
     Alert.alert('Link Copied', `Session link copied to clipboard!\n\n${link}`);
   };

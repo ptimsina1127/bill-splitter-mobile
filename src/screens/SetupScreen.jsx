@@ -4,9 +4,10 @@ import {
   Keyboard, Pressable, ScrollView,
 } from 'react-native';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const API = axios.create({
-  baseURL: 'https://khoipaisa.duckdns.org/spring-api',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
