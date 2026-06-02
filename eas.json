@@ -9,6 +9,7 @@
       "distribution": "internal"
     },
     "production": {
+      "channel": "production",
       "android": {
         "autoIncrement": "versionCode"
       }
