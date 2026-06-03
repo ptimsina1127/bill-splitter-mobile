@@ -51,9 +51,13 @@ class MainApplication : Application(), ReactApplication {
         }
       }
 
+      val instanceField = flagsClass.getDeclaredField("INSTANCE")
+      instanceField.isAccessible = true
+      val instance = instanceField.get(null)
+
       val accessorField = flagsClass.getDeclaredField("accessor")
       accessorField.isAccessible = true
-      accessorField.set(null, accessorProxy)
+      accessorField.set(instance, accessorProxy)
     } catch (e: Exception) {
       e.printStackTrace()
     }
