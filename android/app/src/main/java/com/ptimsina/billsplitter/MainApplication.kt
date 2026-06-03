@@ -33,19 +33,27 @@ class MainApplication : Application(), ReactApplication {
 
   private fun overrideReactNativeFeatureFlags() {
     try {
+      val flagsClass = Class.forName("com.facebook.react.internal.featureflags.ReactNativeFeatureFlags")
       val defaultsClass = Class.forName("com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsDefaults")
+      val accessorInterface = Class.forName("com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsAccessor")
+
       val defaults = defaultsClass.getDeclaredConstructor().newInstance()
 
-      val providerClass = Class.forName("com.facebook.react.internal.featureflags.ReactNativeFeatureFlagsAccessorProvider")
-      val provider = Proxy.newProxyInstance(
-        providerClass.classLoader,
-        arrayOf(providerClass)
-      ) { _, _, _ -> defaults }
+      val accessorProxy = Proxy.newProxyInstance(
+        accessorInterface.classLoader,
+        arrayOf(accessorInterface)
+      ) { _, method, args ->
+        try {
+          val m = defaultsClass.getMethod(method.name, *method.parameterTypes)
+          m.invoke(defaults, *(args ?: emptyArray()))
+        } catch (e: NoSuchMethodException) {
+          null
+        }
+      }
 
-      val flagsClass = Class.forName("com.facebook.react.internal.featureflags.ReactNativeFeatureFlags")
-      val setProvider = flagsClass.getDeclaredMethod("setAccessorProvider", providerClass)
-      setProvider.isAccessible = true
-      setProvider.invoke(null, provider)
+      val accessorField = flagsClass.getDeclaredField("accessor")
+      accessorField.isAccessible = true
+      accessorField.set(null, accessorProxy)
     } catch (e: Exception) {
       e.printStackTrace()
     }
