@@ -1,7 +1,8 @@
-name: Build Android App
+name: Build and Deploy Android
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ 'release/**' ]
 
 jobs:
   build:
@@ -27,20 +28,35 @@ jobs:
           mkdir -p android/credentials
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/credentials/keystore.jks
 
-      - name: Fix gradlew line endings and permissions
+      - name: Fix gradlew
         run: |
           sed -i 's/\r$//' android/gradlew
-          chmod +x android/gradlew android/gradlew.bat
+          chmod +x android/gradlew
+
+      - name: Parse version from branch
+        id: version
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/release/}"
+          echo "versionName=$BRANCH" >> $GITHUB_OUTPUT
+          echo "versionCode=${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Build release AAB
-        run: cd android && ./gradlew bundleRelease
+        run: cd android && ./gradlew bundleRelease -PversionName=${{ steps.version.outputs.versionName }} -PversionCode=${{ steps.version.outputs.versionCode }}
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-release-${{ steps.version.outputs.versionName }}
           path: android/app/build/outputs/bundle/release/app-release.aab
+
+      - uses: r0adkll/upload-google-play@v1
+        with:
+          service_account_json_base64: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          package_name: com.ptimsina.billsplitter
+          release_file: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+          release_name: ${{ steps.version.outputs.versionName }}
