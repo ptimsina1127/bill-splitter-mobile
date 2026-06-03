@@ -29,7 +29,7 @@ jobs:
 
       - name: Fix gradlew line endings and permissions
         run: |
-          dos2unix android/gradlew
+          sed -i 's/\r$//' android/gradlew
           chmod +x android/gradlew android/gradlew.bat
 
       - name: Build release AAB
