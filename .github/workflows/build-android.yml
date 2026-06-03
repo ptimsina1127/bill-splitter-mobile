@@ -52,11 +52,15 @@ jobs:
           name: app-release-${{ steps.version.outputs.versionName }}
           path: android/app/build/outputs/bundle/release/app-release.aab
 
+      - name: Decode service account
+        run: |
+          echo "${{ secrets.SERVICE_ACCOUNT_JSON }}" | base64 -d > android/service-account.json
+
       - uses: r0adkll/upload-google-play@v1
         with:
-          service_account_json_base64: ${{ secrets.SERVICE_ACCOUNT_JSON }}
-          package_name: com.ptimsina.billsplitter
-          release_file: android/app/build/outputs/bundle/release/app-release.aab
+          serviceAccountJson: android/service-account.json
+          packageName: com.ptimsina.billsplitter
+          releaseFile: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
-          release_name: ${{ steps.version.outputs.versionName }}
+          releaseName: ${{ steps.version.outputs.versionName }}
