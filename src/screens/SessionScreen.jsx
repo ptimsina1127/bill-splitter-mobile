@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Alert, RefreshControl,
   Keyboard, Pressable, Image, Modal,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import * as Clipboard from '@react-native-clipboard/clipboard';
 import api from '../api/client';
 import { APP_BASE_URL } from '../config';
 import ParticipantCard from '../components/ParticipantCard';
