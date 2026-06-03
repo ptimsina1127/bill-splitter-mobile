@@ -24,8 +24,8 @@ jobs:
 
       - name: Decode keystore
         run: |
-          mkdir -p credentials
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > credentials/keystore.jks
+          mkdir -p android/credentials
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/credentials/keystore.jks
 
       - name: Fix gradlew line endings and permissions
         run: |
