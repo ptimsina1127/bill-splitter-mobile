@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, RefreshControl,
+  ActivityIndicator, Alert, RefreshControl, Share,
   Keyboard, Pressable, Image, Modal,
 } from 'react-native';
 import * as Clipboard from '@react-native-clipboard/clipboard';
@@ -68,10 +68,21 @@ export default function SessionScreen({ route, navigation }) {
 
   const shortUrl = session?.shortCode ? `${APP_BASE_URL}/s/${session.shortCode}` : null;
 
-  const shareSession = async () => {
+  const shareSessionFallback = async () => {
     const link = shortUrl || `${APP_BASE_URL}/session/${sessionId}`;
     await Clipboard.setStringAsync(link);
     Alert.alert('Link Copied', `Session link copied to clipboard!\n\n${link}`);
+  };
+
+  const shareSession = async () => {
+    const link = shortUrl || `${APP_BASE_URL}/session/${sessionId}`;
+    try {
+      await Share.share({
+        message: `Join my Bill Splitter session: ${link}`,
+      });
+    } catch {
+      await shareSessionFallback();
+    }
   };
 
   
