@@ -13,14 +13,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.billsplitter",
+      "bundleIdentifier": "com.ptimsina.billsplitter",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.billsplitter",
-      "versionCode": 7,
+      "package": "com.ptimsina.billsplitter",
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0ea5e9"
