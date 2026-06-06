@@ -100,7 +100,8 @@ export default function SessionScreen({ route, navigation }) {
       contentContainerStyle={{ paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={loading} onRefresh={fetch} />}
-      decelerationRate="fast"
+      decelerationRate={0.999}
+      scrollEventThrottle={16}
     >
       {/* Header */}
       <View style={styles.header}>
