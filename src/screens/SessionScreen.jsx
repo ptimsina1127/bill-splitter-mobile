@@ -85,13 +85,13 @@ export default function SessionScreen({ route, navigation }) {
     }
   }, [shortUrl, sessionId, shareSessionFallback]);
 
+  const sortedParticipants = useMemo(
+    () => session ? [...(session.participants || [])].sort((a, b) => a.displayOrder - b.displayOrder) : [],
+    [session?.participants]
+  );
+
   if (loading) return <ActivityIndicator style={{ marginTop: 60 }} />;
   if (!session) return <Text style={{ textAlign: 'center', marginTop: 60, color: '#94a3b8' }}>Session not found</Text>;
-
-  const sortedParticipants = useMemo(
-    () => [...(session.participants || [])].sort((a, b) => a.displayOrder - b.displayOrder),
-    [session.participants]
-  );
 
   return (
     <Pressable style={styles.container} onPress={Keyboard.dismiss}>
