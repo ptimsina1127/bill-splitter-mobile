@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, RefreshControl, Share,
@@ -19,12 +19,12 @@ export default function SessionScreen({ route, navigation }) {
   const [settlementDismissed, setSettlementDismissed] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
-  const handleEditingChange = (editing) => {
+  const handleEditingChange = useCallback((editing) => {
     setEditCount(prev => editing ? prev + 1 : Math.max(0, prev - 1));
     if (editing) setSettlementDismissed(true);
-  };
+  }, []);
 
-  const handleRecalculate = async () => {
+  const handleRecalculate = useCallback(async () => {
     setSettlementDismissed(false);
     setCalcLoading(true);
     try {
@@ -33,7 +33,7 @@ export default function SessionScreen({ route, navigation }) {
     } catch {} finally {
       setCalcLoading(false);
     }
-  };
+  }, [sessionId]);
 
   const fetch = useCallback(async () => {
     try {
@@ -54,7 +54,7 @@ export default function SessionScreen({ route, navigation }) {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  const calculate = async () => {
+  const calculate = useCallback(async () => {
     setCalcLoading(true);
     try {
       const { data } = await api.post(`/sessions/${sessionId}/calculate`);
@@ -62,19 +62,19 @@ export default function SessionScreen({ route, navigation }) {
     } catch {} finally {
       setCalcLoading(false);
     }
-  };
+  }, [sessionId]);
 
-  const handleLeave = () => navigation.popToTop();
+  const handleLeave = useCallback(() => navigation.popToTop(), [navigation]);
 
   const shortUrl = session?.shortCode ? `${APP_BASE_URL}/s/${session.shortCode}` : null;
 
-  const shareSessionFallback = async () => {
+  const shareSessionFallback = useCallback(async () => {
     const link = shortUrl || `${APP_BASE_URL}/session/${sessionId}`;
     await Clipboard.setStringAsync(link);
     Alert.alert('Link Copied', `Session link copied to clipboard!\n\n${link}`);
-  };
+  }, [shortUrl, sessionId]);
 
-  const shareSession = async () => {
+  const shareSession = useCallback(async () => {
     const link = shortUrl || `${APP_BASE_URL}/session/${sessionId}`;
     try {
       await Share.share({
@@ -83,14 +83,15 @@ export default function SessionScreen({ route, navigation }) {
     } catch {
       await shareSessionFallback();
     }
-  };
-
-  
+  }, [shortUrl, sessionId, shareSessionFallback]);
 
   if (loading) return <ActivityIndicator style={{ marginTop: 60 }} />;
   if (!session) return <Text style={{ textAlign: 'center', marginTop: 60, color: '#94a3b8' }}>Session not found</Text>;
 
-  const sortedParticipants = [...(session.participants || [])].sort((a, b) => a.displayOrder - b.displayOrder);
+  const sortedParticipants = useMemo(
+    () => [...(session.participants || [])].sort((a, b) => a.displayOrder - b.displayOrder),
+    [session.participants]
+  );
 
   return (
     <Pressable style={styles.container} onPress={Keyboard.dismiss}>

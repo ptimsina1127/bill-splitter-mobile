@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, Modal, Keyboard,
 } from 'react-native';
 import api from '../api/client';
 
-export default function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
+const ParticipantCard = memo(function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -21,15 +21,15 @@ export default function ParticipantCard({ participant, items, allParticipants, s
     }
   }, [editing]);
 
-  const myItems = items.filter(i => i.paidByParticipantId === participant.id);
+  const myItems = useMemo(() => items.filter(i => i.paidByParticipantId === participant.id), [items, participant.id]);
 
-  const startEdit = (field, current) => {
+  const startEdit = useCallback((field, current) => {
     setEditing(field);
     setEditVal(current);
     onEditingChange(true);
-  };
+  }, [onEditingChange]);
 
-  const saveEdit = async () => {
+  const saveEdit = useCallback(async () => {
     if (!editing) return;
     const val = editVal.trim();
     if (!val) { setEditing(null); onEditingChange(false); return; }
@@ -58,9 +58,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       setEditing(null);
       onEditingChange(false);
     }
-  };
+  }, [editing, editVal, onEditingChange, onUpdate, sessionId, participant.id]);
 
-  const deleteItem = async (itemId) => {
+  const deleteItem = useCallback((itemId) => {
     Alert.alert('Delete', 'Remove this expense?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -70,9 +70,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
         } catch (e) { Alert.alert('Error', 'Failed to delete'); }
       }},
     ]);
-  };
+  }, [sessionId, onUpdate]);
 
-  const deleteParticipant = () => {
+  const deleteParticipant = useCallback(() => {
     Alert.alert('Remove', `Remove ${participant.name} from this session?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: async () => {
@@ -82,9 +82,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
         } catch (e) { Alert.alert('Error', 'Failed to remove participant'); }
       }},
     ]);
-  };
+  }, [participant.name, participant.id, sessionId, onUpdate]);
 
-  const addExpense = async () => {
+  const addExpense = useCallback(async () => {
     if (!newDesc.trim() || !newAmt) return;
     const amount = parseFloat(newAmt);
     if (isNaN(amount) || amount <= 0) { Alert.alert('Invalid', 'Enter a valid amount'); return; }
@@ -102,15 +102,15 @@ export default function ParticipantCard({ participant, items, allParticipants, s
     } catch (e) {
       Alert.alert('Error', 'Failed to add expense');
     }
-  };
+  }, [newDesc, newAmt, newShared, participant.id, sessionId, onEditingChange, onUpdate]);
 
-  const toggleShare = (pid) => {
+  const toggleShare = useCallback((pid) => {
     setNewShared(prev =>
       prev.includes(pid) ? prev.filter(p => p !== pid) : [...prev, pid]
     );
-  };
+  }, []);
 
-  const toggleItemShare = async (item, pid) => {
+  const toggleItemShare = useCallback(async (item, pid) => {
     const current = item.sharedWithParticipantIds || [];
     const updated = current.includes(pid)
       ? current.filter(p => p !== pid)
@@ -124,7 +124,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       });
       onUpdate();
     } catch (e) { Alert.alert('Error', 'Failed to update sharing'); }
-  };
+  }, [sessionId, onUpdate]);
+
+  const allParticipantIds = useMemo(() => allParticipants.map(p => p.id), [allParticipants]);
 
   const initial = (participant.name || '?')[0].toUpperCase();
 
@@ -200,7 +202,7 @@ export default function ParticipantCard({ participant, items, allParticipants, s
                     onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
                   >
                     <Text style={styles.shareText}>
-                      {(item.sharedWithParticipantIds || allParticipants.map(p => p.id)).length}/{allParticipants.length}
+                      {(item.sharedWithParticipantIds || allParticipantIds).length}/{allParticipants.length}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -220,7 +222,7 @@ export default function ParticipantCard({ participant, items, allParticipants, s
             <Text style={styles.shareTitle}>Split with</Text>
             {allParticipants.map(p => {
               const item = items.find(i => i.id === shareItem);
-              const checked = item ? (item.sharedWithParticipantIds || allParticipants.map(x => x.id)).includes(p.id) : false;
+              const checked = item ? (item.sharedWithParticipantIds || allParticipantIds).includes(p.id) : false;
               return (
                 <TouchableOpacity
                   key={p.id}
@@ -286,7 +288,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       )}
     </View>
   );
-}
+});
+
+export default ParticipantCard;
 
 const styles = StyleSheet.create({
   card: {

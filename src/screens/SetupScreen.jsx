@@ -3,13 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
   Keyboard, Pressable, ScrollView,
 } from 'react-native';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
-
-const API = axios.create({
-  baseURL: API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
+import api from '../api/client';
 
 export default function SetupScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -26,7 +20,7 @@ export default function SetupScreen({ navigation }) {
     setLoading(true);
     try {
       const participantNames = Array.from({ length: count }, (_, i) => `Person ${i + 1}`);
-      const { data } = await API.post('/sessions', { name, participantNames });
+      const { data } = await api.post('/sessions', { name, participantNames });
       navigation.replace('Session', { sessionId: data.id, sessionName: data.name });
     } catch (err) {
       Alert.alert('Error', 'Failed to create session. Is the server running?');
