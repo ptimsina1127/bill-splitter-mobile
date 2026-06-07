@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   settlePromptTitle: { fontSize: 18, fontWeight: '700', color: '#1e293b', marginBottom: 4 },
   settlePromptSub: { fontSize: 14, color: '#64748b', marginBottom: 16 },
   calcBtn: {
-    flex: 1, backgroundColor: '#0ea5e9', paddingVertical: 12,
+    flex: 1, backgroundColor: '#0ea5e9', paddingVertical: 12, paddingHorizontal: 24,
     borderRadius: 10, alignItems: 'center',
   },
   calcBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },

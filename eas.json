@@ -9,6 +9,7 @@
       "distribution": "internal"
     },
     "production": {
+      "credentialsSource": "local",
       "android": {
         "autoIncrement": "versionCode"
       }

@@ -9,5 +9,6 @@ google-service-account.jsonbuildinfo
 *.key
 *.mobileprovision
 *.orig.*
+credentials.json
 web-build/
 .DS_Store
