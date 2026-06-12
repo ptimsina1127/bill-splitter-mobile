@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bill Splitter",
     "slug": "bill-splitter-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/icon.png",
     "splash": {
