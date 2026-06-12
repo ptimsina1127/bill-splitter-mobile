@@ -20,7 +20,7 @@
     "android": {
       "package": "com.ptimsina.billsplitter",
       "edgeToEdge": true,
-      "versionCode": 26,
+      "versionCode": 27,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0ea5e9"
