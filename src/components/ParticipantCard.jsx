@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, Modal, Keyboard,
 } from 'react-native';
 import api from '../api/client';
+import { getAvatarColor } from '../utils/avatarColor';
 
-export default function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
+const ParticipantCard = memo(function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -21,15 +22,15 @@ export default function ParticipantCard({ participant, items, allParticipants, s
     }
   }, [editing]);
 
-  const myItems = items.filter(i => i.paidByParticipantId === participant.id);
+  const myItems = useMemo(() => items.filter(i => i.paidByParticipantId === participant.id), [items, participant.id]);
 
-  const startEdit = (field, current) => {
+  const startEdit = useCallback((field, current) => {
     setEditing(field);
     setEditVal(current);
     onEditingChange(true);
-  };
+  }, [onEditingChange]);
 
-  const saveEdit = async () => {
+  const saveEdit = useCallback(async () => {
     if (!editing) return;
     const val = editVal.trim();
     if (!val) { setEditing(null); onEditingChange(false); return; }
@@ -58,9 +59,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       setEditing(null);
       onEditingChange(false);
     }
-  };
+  }, [editing, editVal, onEditingChange, onUpdate, sessionId, participant.id]);
 
-  const deleteItem = async (itemId) => {
+  const deleteItem = useCallback((itemId) => {
     Alert.alert('Delete', 'Remove this expense?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -70,9 +71,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
         } catch (e) { Alert.alert('Error', 'Failed to delete'); }
       }},
     ]);
-  };
+  }, [sessionId, onUpdate]);
 
-  const deleteParticipant = () => {
+  const deleteParticipant = useCallback(() => {
     Alert.alert('Remove', `Remove ${participant.name} from this session?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: async () => {
@@ -82,9 +83,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
         } catch (e) { Alert.alert('Error', 'Failed to remove participant'); }
       }},
     ]);
-  };
+  }, [participant.name, participant.id, sessionId, onUpdate]);
 
-  const addExpense = async () => {
+  const addExpense = useCallback(async () => {
     if (!newDesc.trim() || !newAmt) return;
     const amount = parseFloat(newAmt);
     if (isNaN(amount) || amount <= 0) { Alert.alert('Invalid', 'Enter a valid amount'); return; }
@@ -102,16 +103,16 @@ export default function ParticipantCard({ participant, items, allParticipants, s
     } catch (e) {
       Alert.alert('Error', 'Failed to add expense');
     }
-  };
+  }, [newDesc, newAmt, newShared, participant.id, sessionId, onEditingChange, onUpdate]);
 
-  const toggleShare = (pid) => {
+  const toggleShare = useCallback((pid) => {
     setNewShared(prev =>
       prev.includes(pid) ? prev.filter(p => p !== pid) : [...prev, pid]
     );
-  };
+  }, []);
 
-  const toggleItemShare = async (item, pid) => {
-    const current = item.sharedWithParticipantIds || [];
+  const toggleItemShare = useCallback(async (item, pid) => {
+    const current = item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : [];
     const updated = current.includes(pid)
       ? current.filter(p => p !== pid)
       : [...current, pid];
@@ -124,16 +125,21 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       });
       onUpdate();
     } catch (e) { Alert.alert('Error', 'Failed to update sharing'); }
-  };
+  }, [sessionId, onUpdate]);
 
-  const initial = (participant.name || '?')[0].toUpperCase();
+  const allParticipantIds = useMemo(() => allParticipants.map(p => p.id), [allParticipants]);
+  const shareItemData = useMemo(() => items.find(i => i.id === shareItem), [items, shareItem]);
+
+  const initial = useMemo(() => (participant.name || '?')[0].toUpperCase(), [participant.name]);
+
+  const avatarColor = useMemo(() => getAvatarColor(participant.name || ''), [participant.name]);
 
   return (
     <View style={styles.card}>
       {/* Header: avatar + editable name */}
       <View style={styles.cardHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        <View style={[styles.avatar, { backgroundColor: avatarColor.bg }]}>
+          <Text style={[styles.avatarText, { color: avatarColor.text }]}>{initial}</Text>
         </View>
         <View style={styles.nameArea}>
           {editing?.type === 'name' ? (
@@ -200,7 +206,7 @@ export default function ParticipantCard({ participant, items, allParticipants, s
                     onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
                   >
                     <Text style={styles.shareText}>
-                      {(item.sharedWithParticipantIds || allParticipants.map(p => p.id)).length}/{allParticipants.length}
+                      {(item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : allParticipantIds).length}/{allParticipants.length}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -219,13 +225,12 @@ export default function ParticipantCard({ participant, items, allParticipants, s
           <View style={styles.shareModal}>
             <Text style={styles.shareTitle}>Split with</Text>
             {allParticipants.map(p => {
-              const item = items.find(i => i.id === shareItem);
-              const checked = item ? (item.sharedWithParticipantIds || allParticipants.map(x => x.id)).includes(p.id) : false;
+              const checked = shareItemData ? (shareItemData.sharedWithParticipantIds?.length ? shareItemData.sharedWithParticipantIds : allParticipantIds).includes(p.id) : false;
               return (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.shareRow}
-                  onPress={() => item && toggleItemShare(item, p.id)}
+                  onPress={() => shareItemData && toggleItemShare(shareItemData, p.id)}
                 >
                   <Text style={styles.shareName}>{p.name}</Text>
                   <View style={[styles.checkbox, checked && styles.checked]}>
@@ -286,7 +291,9 @@ export default function ParticipantCard({ participant, items, allParticipants, s
       )}
     </View>
   );
-}
+});
+
+export default ParticipantCard;
 
 const styles = StyleSheet.create({
   card: {
@@ -295,10 +302,10 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   avatar: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#0ea5e9',
+    width: 36, height: 36, borderRadius: 18,
     justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
-  avatarText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  avatarText: { fontSize: 16, fontWeight: '700' },
   nameArea: { flex: 1 },
   nameText: { fontSize: 17, fontWeight: '700', color: '#1e293b' },
   nameInput: {
