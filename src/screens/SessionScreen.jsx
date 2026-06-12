@@ -216,7 +216,9 @@ export default function SessionScreen({ route, navigation }) {
             <View style={styles.shareCard}>
               <Text style={styles.shareCardTitle}>Share with Friends</Text>
               <View style={styles.shareCardRow}>
-                <Text style={styles.shareCardUrl} numberOfLines={1}>{shortUrl}</Text>
+                <TouchableOpacity onPress={async () => { await Clipboard.setStringAsync(shortUrl); Alert.alert('Link copied!'); }} style={styles.shareCardUrl}>
+                  <Text style={styles.shareCardUrlText} numberOfLines={1}>{shortUrl}</Text>
+                </TouchableOpacity>
                 <View style={styles.shareCardActions}>
                   <TouchableOpacity onPress={shareSession} style={styles.shareIconBtn}>
                     <Text style={styles.shareIconText}>Share</Text>
@@ -276,10 +278,10 @@ const styles = StyleSheet.create({
   shareCardTitle: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 10 },
   shareCardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   shareCardUrl: {
-    fontSize: 11, fontFamily: 'monospace', color: '#0ea5e9', fontWeight: '600',
     backgroundColor: '#e0f2fe', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
     flex: 1, marginRight: 10, overflow: 'hidden',
   },
+  shareCardUrlText: { fontSize: 11, fontFamily: 'monospace', color: '#0ea5e9', fontWeight: '600' },
   shareCardActions: { flexDirection: 'row', gap: 8, flexShrink: 0 },
   shareIconBtn: {
     backgroundColor: '#0ea5e9', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10,
