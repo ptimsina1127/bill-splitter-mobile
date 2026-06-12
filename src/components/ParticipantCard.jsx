@@ -112,7 +112,7 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
   }, []);
 
   const toggleItemShare = useCallback(async (item, pid) => {
-    const current = item.sharedWithParticipantIds || [];
+    const current = item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : [];
     const updated = current.includes(pid)
       ? current.filter(p => p !== pid)
       : [...current, pid];
@@ -206,7 +206,7 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
                     onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
                   >
                     <Text style={styles.shareText}>
-                      {(item.sharedWithParticipantIds || allParticipantIds).length}/{allParticipants.length}
+                      {(item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : allParticipantIds).length}/{allParticipants.length}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -225,7 +225,7 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
           <View style={styles.shareModal}>
             <Text style={styles.shareTitle}>Split with</Text>
             {allParticipants.map(p => {
-              const checked = shareItemData ? (shareItemData.sharedWithParticipantIds || allParticipantIds).includes(p.id) : false;
+              const checked = shareItemData ? (shareItemData.sharedWithParticipantIds?.length ? shareItemData.sharedWithParticipantIds : allParticipantIds).includes(p.id) : false;
               return (
                 <TouchableOpacity
                   key={p.id}
