@@ -26,7 +26,6 @@
   },
   "private": true,
   "devDependencies": {
-    "canvas": "^3.2.3",
-    "eas-cli": "^19.1.0"
+    "canvas": "^3.2.3"
   }
 }
