@@ -3,7 +3,6 @@
     "name": "Bill Splitter",
     "slug": "bill-splitter-mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/icon.png",
     "splash": {
@@ -20,7 +19,8 @@
     },
     "android": {
       "package": "com.ptimsina.billsplitter",
-      "versionCode": 10,
+      "edgeToEdge": true,
+      "versionCode": 26,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0ea5e9"

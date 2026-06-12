@@ -4,6 +4,7 @@ import {
   StyleSheet, Alert, Modal, Keyboard,
 } from 'react-native';
 import api from '../api/client';
+import { getAvatarColor } from '../utils/avatarColor';
 
 const ParticipantCard = memo(function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
   const [editing, setEditing] = useState(null);
@@ -127,15 +128,18 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
   }, [sessionId, onUpdate]);
 
   const allParticipantIds = useMemo(() => allParticipants.map(p => p.id), [allParticipants]);
+  const shareItemData = useMemo(() => items.find(i => i.id === shareItem), [items, shareItem]);
 
-  const initial = (participant.name || '?')[0].toUpperCase();
+  const initial = useMemo(() => (participant.name || '?')[0].toUpperCase(), [participant.name]);
+
+  const avatarColor = useMemo(() => getAvatarColor(participant.name || ''), [participant.name]);
 
   return (
     <View style={styles.card}>
       {/* Header: avatar + editable name */}
       <View style={styles.cardHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        <View style={[styles.avatar, { backgroundColor: avatarColor.bg }]}>
+          <Text style={[styles.avatarText, { color: avatarColor.text }]}>{initial}</Text>
         </View>
         <View style={styles.nameArea}>
           {editing?.type === 'name' ? (
@@ -221,13 +225,12 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
           <View style={styles.shareModal}>
             <Text style={styles.shareTitle}>Split with</Text>
             {allParticipants.map(p => {
-              const item = items.find(i => i.id === shareItem);
-              const checked = item ? (item.sharedWithParticipantIds || allParticipantIds).includes(p.id) : false;
+              const checked = shareItemData ? (shareItemData.sharedWithParticipantIds || allParticipantIds).includes(p.id) : false;
               return (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.shareRow}
-                  onPress={() => item && toggleItemShare(item, p.id)}
+                  onPress={() => shareItemData && toggleItemShare(shareItemData, p.id)}
                 >
                   <Text style={styles.shareName}>{p.name}</Text>
                   <View style={[styles.checkbox, checked && styles.checked]}>
@@ -299,10 +302,10 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   avatar: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#0ea5e9',
+    width: 36, height: 36, borderRadius: 18,
     justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
-  avatarText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  avatarText: { fontSize: 16, fontWeight: '700' },
   nameArea: { flex: 1 },
   nameText: { fontSize: 17, fontWeight: '700', color: '#1e293b' },
   nameInput: {

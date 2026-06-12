@@ -10,9 +10,7 @@
     },
     "production": {
       "credentialsSource": "local",
-      "android": {
-        "autoIncrement": "versionCode"
-      }
+      "android": {}
     }
   },
   "submit": {
