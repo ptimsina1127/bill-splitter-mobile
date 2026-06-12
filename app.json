@@ -33,9 +33,7 @@
       }
     },
     "owner": "pravatktimsina",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/444c01f3-181e-4e65-8aa2-9c84fd3548d3"
     }
