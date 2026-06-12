@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Keyboard, Pressable,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import api from '../api/client';
 
 export default function HomeScreen({ navigation }) {
@@ -18,7 +19,6 @@ export default function HomeScreen({ navigation }) {
       const { data } = await api.get(endpoint);
       navigation.navigate('Session', { sessionId: data.id, sessionName: data.name });
     } catch (e) {
-      // fallback: try the other endpoint type
       try {
         const fallback = val.length <= 10 ? `/sessions/${val}` : `/sessions/by-short-code/${val}`;
         const { data } = await api.get(fallback);
@@ -33,6 +33,22 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <Pressable style={styles.container} onPress={Keyboard.dismiss}>
+      <View style={styles.logoWrapper}>
+        <View style={styles.logoShadow}>
+          <LinearGradient
+            colors={['#0ea5e9', '#6366f1']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.logoGradient}
+          >
+            <View style={styles.logoInner}>
+              <Text style={styles.logoLetter}>B</Text>
+            </View>
+            <View style={styles.logoAccent} />
+          </LinearGradient>
+        </View>
+      </View>
+
       <Text style={styles.title}>Bill Splitter</Text>
       <Text style={styles.subtitle}>Split expenses with friends</Text>
 
@@ -75,6 +91,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: '#f8fafc', padding: 24,
+  },
+  logoWrapper: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  logoShadow: {
+    width: 120, height: 120, borderRadius: 32,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  logoGradient: {
+    width: 120, height: 120, borderRadius: 32,
+    justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden',
+  },
+  logoInner: {
+    width: 100, height: 100, borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  logoLetter: {
+    fontSize: 52, fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: -4,
+    marginTop: -4,
+    textShadowColor: 'rgba(0,0,0,0.15)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  logoAccent: {
+    position: 'absolute', bottom: -20, right: -20,
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   title: { fontSize: 36, fontWeight: 'bold', color: '#1e293b', marginBottom: 4 },
   subtitle: { fontSize: 16, color: '#64748b', marginBottom: 48 },
