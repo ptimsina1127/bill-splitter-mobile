@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Keyboard, Pressable,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import api from '../api/client';
 
 export default function HomeScreen({ navigation }) {
@@ -35,17 +34,12 @@ export default function HomeScreen({ navigation }) {
     <Pressable style={styles.container} onPress={Keyboard.dismiss}>
       <View style={styles.logoWrapper}>
         <View style={styles.logoShadow}>
-          <LinearGradient
-            colors={['#0ea5e9', '#6366f1']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoGradient}
-          >
+          <View style={styles.logoGradient}>
             <View style={styles.logoInner}>
               <Text style={styles.logoLetter}>B</Text>
             </View>
             <View style={styles.logoAccent} />
-          </LinearGradient>
+          </View>
         </View>
       </View>
 
@@ -106,6 +100,7 @@ const styles = StyleSheet.create({
   },
   logoGradient: {
     width: 120, height: 120, borderRadius: 32,
+    backgroundColor: '#6366f1',
     justifyContent: 'center', alignItems: 'center',
     overflow: 'hidden',
   },
