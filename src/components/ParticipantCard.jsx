@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, Modal, Keyboard,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import api from '../api/client';
 import { getAvatarColor } from '../utils/avatarColor';
 
@@ -61,29 +62,21 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
     }
   }, [editing, editVal, onEditingChange, onUpdate, sessionId, participant.id]);
 
-  const deleteItem = useCallback((itemId) => {
-    Alert.alert('Delete', 'Remove this expense?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try {
-          await api.delete(`/sessions/${sessionId}/items/${itemId}`);
-          onUpdate();
-        } catch (e) { Alert.alert('Error', 'Failed to delete'); }
-      }},
-    ]);
+  const deleteItem = useCallback((item) => {
+    Alert.alert(
+      'Delete Expense',
+      `Delete "${item.description}" — $${Number(item.amount).toFixed(2)}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await api.delete(`/sessions/${sessionId}/items/${item.id}`);
+            onUpdate();
+          } catch { Alert.alert('Error', 'Failed to delete'); }
+        }},
+      ]
+    );
   }, [sessionId, onUpdate]);
-
-  const deleteParticipant = useCallback(() => {
-    Alert.alert('Remove', `Remove ${participant.name} from this session?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => {
-        try {
-          await api.delete(`/sessions/${sessionId}/participants/${participant.id}`);
-          onUpdate();
-        } catch (e) { Alert.alert('Error', 'Failed to remove participant'); }
-      }},
-    ]);
-  }, [participant.name, participant.id, sessionId, onUpdate]);
 
   const addExpense = useCallback(async () => {
     if (!newDesc.trim() || !newAmt) return;
@@ -134,9 +127,14 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
 
   const avatarColor = useMemo(() => getAvatarColor(participant.name || ''), [participant.name]);
 
+  const totalSpent = useMemo(
+    () => myItems.reduce((sum, i) => sum + Number(i.amount), 0),
+    [myItems]
+  );
+
   return (
     <View style={styles.card}>
-      {/* Header: avatar + editable name */}
+      {/* Header: avatar + editable name + total spent */}
       <View style={styles.cardHeader}>
         <View style={[styles.avatar, { backgroundColor: avatarColor.bg }]}>
           <Text style={[styles.avatarText, { color: avatarColor.text }]}>{initial}</Text>
@@ -158,63 +156,77 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity onPress={deleteParticipant} style={styles.deleteBtn}>
-          <Text style={styles.deleteText}>✕</Text>
-        </TouchableOpacity>
+        <View style={styles.totalTag}>
+          <Text style={styles.totalTagIcon}>$</Text>
+          <Text style={styles.totalTagAmount}>{Number(totalSpent).toFixed(2)}</Text>
+        </View>
       </View>
 
       {/* Expenses list */}
       {myItems.length > 0 && (
         <View style={styles.expensesList}>
           {myItems.map(item => (
-            <View key={item.id} style={styles.expenseRow}>
-              <View style={styles.expenseLeft}>
-                {editing?.type === 'desc' && editing?.itemId === item.id ? (
-                  <TextInput
-                    ref={editRef}
-                    style={styles.inlineInput}
-                    value={editVal}
-                    onChangeText={setEditVal}
-                    onBlur={saveEdit}
-                    onSubmitEditing={saveEdit}
-                    selectTextOnFocus
-                  />
-                ) : (
-                  <TouchableOpacity onPress={() => startEdit({ type: 'desc', itemId: item.id, orig: item }, item.description)}>
-                    <Text style={styles.descText} numberOfLines={1}>{item.description}</Text>
-                  </TouchableOpacity>
-                )}
-                <View style={styles.expenseMeta}>
-                  {editing?.type === 'amount' && editing?.itemId === item.id ? (
+            <Swipeable
+              key={item.id}
+              renderRightActions={() => (
+                <TouchableOpacity
+                  style={styles.swipeDeleteAction}
+                  onPress={() => deleteItem(item)}
+                >
+                  <Text style={styles.swipeDeleteText}>Delete</Text>
+                </TouchableOpacity>
+              )}
+              overshootRight={false}
+            >
+              <View style={styles.expenseRow}>
+                <View style={styles.expenseLeft}>
+                  {editing?.type === 'desc' && editing?.itemId === item.id ? (
                     <TextInput
                       ref={editRef}
-                      style={[styles.inlineInput, styles.amtInput]}
+                      style={styles.inlineInput}
                       value={editVal}
                       onChangeText={setEditVal}
                       onBlur={saveEdit}
                       onSubmitEditing={saveEdit}
-                      keyboardType="decimal-pad"
                       selectTextOnFocus
                     />
                   ) : (
-                    <TouchableOpacity onPress={() => startEdit({ type: 'amount', itemId: item.id, orig: item }, String(item.amount))}>
-                      <Text style={styles.amtText}>${Number(item.amount).toFixed(2)}</Text>
+                    <TouchableOpacity onPress={() => startEdit({ type: 'desc', itemId: item.id, orig: item }, item.description)}>
+                      <Text style={styles.descText} numberOfLines={1}>{item.description}</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity
-                    style={styles.shareBadge}
-                    onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
-                  >
-                    <Text style={styles.shareText}>
-                      {(item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : allParticipantIds).length}/{allParticipants.length}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.expenseMeta}>
+                    {editing?.type === 'amount' && editing?.itemId === item.id ? (
+                      <TextInput
+                        ref={editRef}
+                        style={[styles.inlineInput, styles.amtInput]}
+                        value={editVal}
+                        onChangeText={setEditVal}
+                        onBlur={saveEdit}
+                        onSubmitEditing={saveEdit}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                      />
+                    ) : (
+                      <TouchableOpacity onPress={() => startEdit({ type: 'amount', itemId: item.id, orig: item }, String(item.amount))}>
+                        <Text style={styles.amtText}>${Number(item.amount).toFixed(2)}</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      style={styles.shareBadge}
+                      onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
+                    >
+                      <Text style={styles.shareText}>
+                        {(item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : allParticipantIds).length}/{allParticipants.length}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
+                <TouchableOpacity onPress={() => deleteItem(item)} style={styles.deleteBtn}>
+                  <Text style={styles.deleteText}>✕</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => deleteItem(item.id)} style={styles.deleteBtn}>
-                <Text style={styles.deleteText}>✕</Text>
-              </TouchableOpacity>
-            </View>
+            </Swipeable>
           ))}
         </View>
       )}
@@ -330,6 +342,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
   },
   shareText: { fontSize: 11, color: '#64748b', fontWeight: '600' },
+  totalTag: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#f1f5f9', borderRadius: 12,
+    paddingVertical: 4, paddingHorizontal: 10, gap: 4,
+  },
+  totalTagIcon: { fontSize: 11, color: '#0ea5e9', fontWeight: '800' },
+  totalTagAmount: { fontSize: 14, fontWeight: '700', color: '#0ea5e9' },
   deleteBtn: { padding: 6, marginLeft: 8 },
   deleteText: { fontSize: 14, color: '#ef4444' },
   addForm: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 10 },
@@ -356,6 +375,11 @@ const styles = StyleSheet.create({
     borderRadius: 10, paddingVertical: 10, alignItems: 'center',
   },
   addExpText: { fontSize: 13, color: '#0ea5e9', fontWeight: '600' },
+  swipeDeleteAction: {
+    backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center',
+    width: 80, borderRadius: 8, marginVertical: 4,
+  },
+  swipeDeleteText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   overlay: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',

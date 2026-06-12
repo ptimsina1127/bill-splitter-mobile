@@ -100,7 +100,7 @@ export default function SessionScreen({ route, navigation }) {
   const renderItem = useCallback(({ item }) => (
     <ParticipantCard
       participant={item}
-      items={session?.items ?? EMPTY_ITEMS}
+      items={(session?.items ?? EMPTY_ITEMS).filter(i => i.paidByParticipantId === item.id)}
       allParticipants={sortedParticipants}
       sessionId={sessionId}
       onUpdate={fetch}
@@ -110,7 +110,12 @@ export default function SessionScreen({ route, navigation }) {
 
   const debtsContent = useMemo(() => {
     if (!settlement?.debts?.length) return null;
-    return settlement.debts.map((d, i) => {
+    const activeNames = new Set(sortedParticipants.map(p => p.name));
+    const activeDebts = settlement.debts.filter(
+      d => activeNames.has(d.fromParticipantName) && activeNames.has(d.toParticipantName)
+    );
+    if (!activeDebts.length) return null;
+    return activeDebts.map((d, i) => {
       const fromColor = getAvatarColor(d.fromParticipantName);
       const toColor = getAvatarColor(d.toParticipantName);
       return (
@@ -132,7 +137,7 @@ export default function SessionScreen({ route, navigation }) {
         </View>
       );
     });
-  }, [settlement?.debts]);
+  }, [settlement?.debts, sortedParticipants]);
 
   if (loading) return <ActivityIndicator style={styles.loadingIndicator} />;
   if (!session) return <Text style={styles.notFound}>Session not found</Text>;
@@ -148,7 +153,7 @@ export default function SessionScreen({ route, navigation }) {
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       removeClippedSubviews={true}
-      windowSize={10}
+      windowSize={5}
       maxToRenderPerBatch={10}
       initialNumToRender={5}
       ListHeaderComponent={

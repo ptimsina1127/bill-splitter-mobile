@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import HomeScreen from './src/screens/HomeScreen';
 import SetupScreen from './src/screens/SetupScreen';
 import SessionScreen from './src/screens/SessionScreen';
@@ -8,6 +9,7 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
@@ -33,5 +35,6 @@ export default function App() {
         />
       </Stack.Navigator>
     </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
