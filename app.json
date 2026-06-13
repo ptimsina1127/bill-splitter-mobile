@@ -19,22 +19,29 @@
     },
     "android": {
       "package": "com.ptimsina.billsplitter",
-      "versionCode": 27,
+      "versionCode": 28,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0ea5e9"
       }
     },
-    "plugins": [],
+    "plugins": [
+      "./plugins/fix-bundle-path.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "newArchEnabled": false,
+            "hermesEnabled": false
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "444c01f3-181e-4e65-8aa2-9c84fd3548d3"
       }
     },
-    "owner": "pravatktimsina",
-    "runtimeVersion": "1.0.0",
-    "updates": {
-      "url": "https://u.expo.dev/444c01f3-181e-4e65-8aa2-9c84fd3548d3"
-    }
+    "owner": "pravatktimsina"
   }
 }

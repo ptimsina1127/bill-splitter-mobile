@@ -63,6 +63,29 @@ react {
     autolinkLibrariesWithApp()
 }
 
+
+// Patch JS bundle to replace bare require() calls with globalThis.__r()
+// The web-streams-polyfill (expo/virtual/streams.js) is included as a
+// global-scope polyfill where require is not defined globally.
+tasks.whenTaskAdded { task ->
+    if (task.name == 'createBundleReleaseJsAndAssets') {
+        task.doLast {
+            def bundleFile = file("$buildDir/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle")
+            if (bundleFile.exists()) {
+                def content = bundleFile.text
+                def patched = content.replaceAll(
+                    /!function\(e\)\{var r=require\("@babel\/runtime\/helpers\/defineProperty"\);/,
+                    '!function(e){var r=globalThis.__r("@babel/runtime/helpers/defineProperty");'
+                )
+                if (patched != content) {
+                    bundleFile.text = patched
+                    println "Patched require() -> globalThis.__r() in bundle"
+                }
+            }
+        }
+    }
+}
+
 /**
  * Set this to true in release builds to optimize the app using [R8](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization).
  */
@@ -92,7 +115,7 @@ android {
         applicationId 'com.ptimsina.billsplitter'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 27
+        versionCode 28
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -105,10 +128,10 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file(System.getenv('KEYSTORE_FILE') ?: '../credentials/keystore.jks')
-            storePassword System.getenv('KEYSTORE_PASSWORD')
-            keyAlias System.getenv('KEY_ALIAS')
-            keyPassword System.getenv('KEY_PASSWORD')
+            storeFile file('../../release-keystore.jks')
+            storePassword 'android'
+            keyAlias 'upload_key'
+            keyPassword 'android'
         }
     }
     buildTypes {
