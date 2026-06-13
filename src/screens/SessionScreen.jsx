@@ -44,10 +44,9 @@ export default function SessionScreen({ route, navigation }) {
       const { data } = await api.get(`/sessions/${sessionId}`);
       setSession(data);
       if (data.items.length > 0) {
-        try {
-          const { data: settlementData } = await api.post(`/sessions/${sessionId}/calculate`);
-          setSettlement(settlementData);
-        } catch {}
+        api.post(`/sessions/${sessionId}/calculate`).then(({ data: sd }) => {
+          setSettlement(sd);
+        }).catch(() => {});
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to load session');
@@ -97,16 +96,27 @@ export default function SessionScreen({ route, navigation }) {
     return [...participants].sort((a, b) => a.displayOrder - b.displayOrder);
   }, [session?.participants]);
 
+  const itemsByParticipant = useMemo(() => {
+    const all = session?.items ?? EMPTY_ITEMS;
+    const map = {};
+    for (const item of all) {
+      const arr = map[item.paidByParticipantId];
+      if (arr) arr.push(item);
+      else map[item.paidByParticipantId] = [item];
+    }
+    return map;
+  }, [session?.items]);
+
   const renderItem = useCallback(({ item }) => (
     <ParticipantCard
       participant={item}
-      items={(session?.items ?? EMPTY_ITEMS).filter(i => i.paidByParticipantId === item.id)}
+      items={itemsByParticipant[item.id] ?? EMPTY_ITEMS}
       allParticipants={sortedParticipants}
       sessionId={sessionId}
       onUpdate={fetch}
       onEditingChange={handleEditingChange}
     />
-  ), [session?.items, sortedParticipants, sessionId, fetch, handleEditingChange]);
+  ), [itemsByParticipant, sortedParticipants, sessionId, fetch, handleEditingChange]);
 
   const debtsContent = useMemo(() => {
     if (!settlement?.debts?.length) return null;
