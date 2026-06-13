@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, Modal, Keyboard,
+  StyleSheet, Alert, Modal, Keyboard, ScrollView,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import api from '../api/client';
@@ -15,6 +15,8 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
   const [newAmt, setNewAmt] = useState('');
   const [newShared, setNewShared] = useState([]);
   const [shareItem, setShareItem] = useState(null);
+  const [showAddShare, setShowAddShare] = useState(false);
+  const [shareSelections, setShareSelections] = useState(null);
   const editRef = useRef(null);
 
   useEffect(() => {
@@ -104,24 +106,44 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
     );
   }, []);
 
-  const toggleItemShare = useCallback(async (item, pid) => {
-    const current = item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : [];
-    const updated = current.includes(pid)
-      ? current.filter(p => p !== pid)
-      : [...current, pid];
-    try {
-      await api.put(`/sessions/${sessionId}/items/${item.id}`, {
-        paidByParticipantId: item.paidByParticipantId,
-        description: item.description,
-        amount: item.amount,
-        sharedWithParticipantIds: updated,
-      });
-      onUpdate();
-    } catch (e) { Alert.alert('Error', 'Failed to update sharing'); }
-  }, [sessionId, onUpdate]);
-
   const allParticipantIds = useMemo(() => allParticipants.map(p => p.id), [allParticipants]);
   const shareItemData = useMemo(() => items.find(i => i.id === shareItem), [items, shareItem]);
+
+  useEffect(() => {
+    if (shareItemData) {
+      setShareSelections(
+        shareItemData.sharedWithParticipantIds?.length
+          ? [...shareItemData.sharedWithParticipantIds]
+          : [...allParticipantIds]
+      );
+    } else {
+      setShareSelections(null);
+    }
+  }, [shareItemData, allParticipantIds]);
+
+  const toggleLocalShare = useCallback((pid) => {
+    setShareSelections(prev => {
+      if (!prev) return prev;
+      return prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid];
+    });
+  }, []);
+
+  const closeShareModal = useCallback(async () => {
+    const item = shareItemData;
+    if (item && shareSelections) {
+      try {
+        await api.put(`/sessions/${sessionId}/items/${item.id}`, {
+          paidByParticipantId: item.paidByParticipantId,
+          description: item.description,
+          amount: item.amount,
+          sharedWithParticipantIds: shareSelections,
+        });
+        onUpdate();
+      } catch (e) { Alert.alert('Error', 'Failed to update sharing'); }
+    }
+    setShareItem(null);
+    setShareSelections(null);
+  }, [shareItemData, shareSelections, sessionId, onUpdate]);
 
   const initial = useMemo(() => (participant.name || '?')[0].toUpperCase(), [participant.name]);
 
@@ -217,7 +239,7 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
                       onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
                     >
                       <Text style={styles.shareText}>
-                        {(item.sharedWithParticipantIds?.length ? item.sharedWithParticipantIds : allParticipantIds).length}/{allParticipants.length}
+                        {(!item.sharedWithParticipantIds?.length || item.sharedWithParticipantIds.length === allParticipants.length) ? 'ALL' : `${item.sharedWithParticipantIds.length}/${allParticipants.length}`}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -233,24 +255,53 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
 
       {/* Share modal for an item */}
       <Modal visible={shareItem !== null} transparent animationType="fade">
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShareItem(null)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeShareModal}>
           <View style={styles.shareModal}>
             <Text style={styles.shareTitle}>Split with</Text>
-            {allParticipants.map(p => {
-              const checked = shareItemData ? (shareItemData.sharedWithParticipantIds?.length ? shareItemData.sharedWithParticipantIds : allParticipantIds).includes(p.id) : false;
-              return (
-                <TouchableOpacity
-                  key={p.id}
-                  style={styles.shareRow}
-                  onPress={() => shareItemData && toggleItemShare(shareItemData, p.id)}
-                >
-                  <Text style={styles.shareName}>{p.name}</Text>
-                  <View style={[styles.checkbox, checked && styles.checked]}>
-                    {checked && <Text style={styles.checkMark}>✓</Text>}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            <ScrollView style={styles.shareGrid}>
+              <View style={styles.shareGridRow}>
+                {allParticipants.map(p => {
+                  const checked = shareSelections ? shareSelections.includes(p.id) : false;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.shareGridItem}
+                      onPress={() => toggleLocalShare(p.id)}
+                    >
+                      <View style={[styles.shareCheckbox, checked && styles.shareCheckboxChecked]}>
+                        {checked && <Text style={styles.shareCheckMark}>✓</Text>}
+                      </View>
+                      <Text style={styles.shareGridName} numberOfLines={1}>{p.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Share modal for add form */}
+      <Modal visible={showAddShare} transparent animationType="fade">
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowAddShare(false)}>
+          <View style={styles.shareModal}>
+            <Text style={styles.shareTitle}>Split with</Text>
+            <ScrollView style={styles.shareGrid}>
+              <View style={styles.shareGridRow}>
+                {allParticipants.map(p => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.shareGridItem}
+                    onPress={() => toggleShare(p.id)}
+                  >
+                    <View style={[styles.shareCheckbox, newShared.includes(p.id) && styles.shareCheckboxChecked]}>
+                      {newShared.includes(p.id) && <Text style={styles.shareCheckMark}>✓</Text>}
+                    </View>
+                    <Text style={styles.shareGridName} numberOfLines={1}>{p.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -275,17 +326,15 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
             value={newAmt}
             onChangeText={setNewAmt}
           />
-          <Text style={styles.splitLabel}>Split with</Text>
-          <View style={styles.chipRow}>
-            {allParticipants.map(p => (
-              <TouchableOpacity
-                key={p.id}
-                style={[styles.chip, newShared.includes(p.id) && styles.chipActive]}
-                onPress={() => toggleShare(p.id)}
-              >
-                <Text style={[styles.chipText, newShared.includes(p.id) && styles.chipTextActive]}>{p.name}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.splitRow}>
+            <Text style={styles.splitLabel}>Split with</Text>
+            <TouchableOpacity style={styles.splitBtn} onPress={() => setShowAddShare(true)}>
+              <Text style={styles.splitBtnText}>
+                {newShared.length === 0 || newShared.length === allParticipants.length
+                  ? 'ALL'
+                  : `${newShared.length}/${allParticipants.length}`}
+              </Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.addActions}>
               <TouchableOpacity onPress={() => { setShowAdd(false); setNewDesc(''); setNewAmt(''); setNewShared([]); onEditingChange(false); }}>
@@ -357,15 +406,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 12, fontSize: 14,
     backgroundColor: '#f8fafc', marginBottom: 8,
   },
-  splitLabel: { fontSize: 12, fontWeight: '600', color: '#64748b', marginBottom: 6 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 10 },
-  chip: {
-    paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16,
-    borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff',
+  splitRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  chipActive: { backgroundColor: '#0ea5e9', borderColor: '#0ea5e9' },
-  chipText: { fontSize: 12, color: '#475569' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
+  splitLabel: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  splitBtn: {
+    backgroundColor: '#f1f5f9', borderRadius: 10,
+    paddingVertical: 6, paddingHorizontal: 14,
+  },
+  splitBtnText: { fontSize: 12, color: '#0ea5e9', fontWeight: '700' },
   addActions: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   cancelText: { fontSize: 14, color: '#94a3b8', fontWeight: '600', paddingVertical: 8 },
   addBtn: { backgroundColor: '#0ea5e9', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 20 },
@@ -389,15 +439,18 @@ const styles = StyleSheet.create({
     maxHeight: '60%',
   },
   shareTitle: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginBottom: 12 },
-  shareRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+  shareGrid: { maxHeight: 300 },
+  shareGridRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  shareGridItem: {
+    width: '30%', flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, paddingHorizontal: 6, gap: 6,
+    marginBottom: 2,
   },
-  shareName: { fontSize: 15, color: '#1e293b' },
-  checkbox: {
-    width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: '#cbd5e1',
+  shareCheckbox: {
+    width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: '#cbd5e1',
     justifyContent: 'center', alignItems: 'center',
   },
-  checked: { backgroundColor: '#0ea5e9', borderColor: '#0ea5e9' },
-  checkMark: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  shareCheckboxChecked: { backgroundColor: '#0ea5e9', borderColor: '#0ea5e9' },
+  shareCheckMark: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  shareGridName: { fontSize: 12, color: '#1e293b', fontWeight: '500', flexShrink: 1 },
 });
