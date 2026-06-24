@@ -9,6 +9,7 @@ import api from '../api/client';
 import { APP_BASE_URL } from '../config';
 import ParticipantCard from '../components/ParticipantCard';
 import { getAvatarColor } from '../utils/avatarColor';
+import { saveSession, saveSessionData, getSessionData } from '../utils/sessionCache';
 
 const EMPTY_ITEMS = [];
 const keyExtractor = (item) => item.id;
@@ -43,7 +44,9 @@ export default function SessionScreen({ route, navigation }) {
     try {
       const { data } = await api.get(`/sessions/${sessionId}`);
       setSession(data);
-      if (data.items.length > 0) {
+      saveSessionData(sessionId, data);
+      saveSession(data);
+      if (data.items.length > 0 && !settlement) {
         api.post(`/sessions/${sessionId}/calculate`).then(({ data: sd }) => {
           setSettlement(sd);
         }).catch(() => {});
@@ -53,9 +56,17 @@ export default function SessionScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, settlement]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => {
+    getSessionData(sessionId).then(cached => {
+      if (cached) {
+        setSession(cached);
+        setLoading(false);
+      }
+    });
+    fetch();
+  }, [fetch, sessionId]);
 
   const calculate = useCallback(async () => {
     setCalcLoading(true);
@@ -107,16 +118,51 @@ export default function SessionScreen({ route, navigation }) {
     return map;
   }, [session?.items]);
 
+  const handleItemAdded = useCallback((item) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      return { ...prev, items: [...prev.items, item] };
+    });
+    saveSessionData(sessionId, { ...session, items: [...(session?.items || []), item] });
+  }, [sessionId, session]);
+
+  const handleItemUpdated = useCallback((itemId, changes) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      const items = prev.items.map(i => i.id === itemId ? { ...i, ...changes } : i);
+      return { ...prev, items };
+    });
+  }, []);
+
+  const handleItemDeleted = useCallback((itemId) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      const items = prev.items.filter(i => i.id !== itemId);
+      return { ...prev, items };
+    });
+  }, []);
+
+  const handleParticipantUpdated = useCallback((participantId, changes) => {
+    setSession(prev => {
+      if (!prev) return prev;
+      const participants = prev.participants.map(p => p.id === participantId ? { ...p, ...changes } : p);
+      return { ...prev, participants };
+    });
+  }, []);
+
   const renderItem = useCallback(({ item }) => (
     <ParticipantCard
       participant={item}
       items={itemsByParticipant[item.id] ?? EMPTY_ITEMS}
       allParticipants={sortedParticipants}
       sessionId={sessionId}
-      onUpdate={fetch}
+      onItemAdded={handleItemAdded}
+      onItemUpdated={handleItemUpdated}
+      onItemDeleted={handleItemDeleted}
+      onParticipantUpdated={handleParticipantUpdated}
       onEditingChange={handleEditingChange}
     />
-  ), [itemsByParticipant, sortedParticipants, sessionId, fetch, handleEditingChange]);
+  ), [itemsByParticipant, sortedParticipants, sessionId, handleItemAdded, handleItemUpdated, handleItemDeleted, handleParticipantUpdated, handleEditingChange]);
 
   const debtsContent = useMemo(() => {
     if (!settlement?.debts?.length) return null;
@@ -149,7 +195,7 @@ export default function SessionScreen({ route, navigation }) {
     });
   }, [settlement?.debts, sortedParticipants]);
 
-  if (loading) return <ActivityIndicator style={styles.loadingIndicator} />;
+  if (loading && !session) return <ActivityIndicator style={styles.loadingIndicator} />;
   if (!session) return <Text style={styles.notFound}>Session not found</Text>;
 
   return (

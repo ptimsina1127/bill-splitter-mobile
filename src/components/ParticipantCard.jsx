@@ -7,7 +7,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import api from '../api/client';
 import { getAvatarColor } from '../utils/avatarColor';
 
-const ParticipantCard = memo(function ParticipantCard({ participant, items, allParticipants, sessionId, onUpdate, onEditingChange }) {
+const ParticipantCard = memo(function ParticipantCard({ participant, items, allParticipants, sessionId, onItemAdded, onItemUpdated, onItemDeleted, onParticipantUpdated, onEditingChange }) {
   const [editing, setEditing] = useState(null);
   const [editVal, setEditVal] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -41,11 +41,13 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
     try {
       if (editing.type === 'name') {
         await api.put(`/sessions/${sessionId}/participants/${participant.id}`, { name: val });
+        if (onParticipantUpdated) onParticipantUpdated(participant.id, { name: val });
       } else if (editing.type === 'desc') {
         await api.put(`/sessions/${sessionId}/items/${editing.itemId}`, {
           ...editing.orig,
           description: val,
         });
+        if (onItemUpdated) onItemUpdated(editing.itemId, { description: val });
       } else if (editing.type === 'amount') {
         const num = parseFloat(val);
         if (isNaN(num) || num <= 0) { setEditing(null); onEditingChange(false); return; }
@@ -53,52 +55,52 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
           ...editing.orig,
           amount: num,
         });
+        if (onItemUpdated) onItemUpdated(editing.itemId, { amount: num });
       }
       setEditing(null);
       onEditingChange(false);
-      onUpdate();
     } catch (e) {
       Alert.alert('Error', 'Failed to save');
       setEditing(null);
       onEditingChange(false);
     }
-  }, [editing, editVal, onEditingChange, onUpdate, sessionId, participant.id]);
+  }, [editing, editVal, onEditingChange, sessionId, participant.id, onItemUpdated, onParticipantUpdated]);
 
   const deleteItem = useCallback((item) => {
     Alert.alert(
       'Delete Expense',
-      `Delete "${item.description}" — $${Number(item.amount).toFixed(2)}?`,
+      `Delete "${item.description || 'No description'}" — $${Number(item.amount).toFixed(2)}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: async () => {
           try {
             await api.delete(`/sessions/${sessionId}/items/${item.id}`);
-            onUpdate();
+            if (onItemDeleted) onItemDeleted(item.id);
           } catch { Alert.alert('Error', 'Failed to delete'); }
         }},
       ]
     );
-  }, [sessionId, onUpdate]);
+  }, [sessionId, onItemDeleted]);
 
   const addExpense = useCallback(async () => {
-    if (!newDesc.trim() || !newAmt) return;
+    if (!newAmt) return;
     const amount = parseFloat(newAmt);
     if (isNaN(amount) || amount <= 0) { Alert.alert('Invalid', 'Enter a valid amount'); return; }
     try {
       const body = {
         paidByParticipantId: participant.id,
-        description: newDesc.trim(),
+        description: newDesc.trim() || '',
         amount,
       };
       if (newShared.length > 0) body.sharedWithParticipantIds = newShared;
-      await api.post(`/sessions/${sessionId}/items`, body);
+      const { data } = await api.post(`/sessions/${sessionId}/items`, body);
       setNewDesc(''); setNewAmt(''); setNewShared([]); setShowAdd(false);
       onEditingChange(false);
-      onUpdate();
+      if (onItemAdded) onItemAdded(data);
     } catch (e) {
       Alert.alert('Error', 'Failed to add expense');
     }
-  }, [newDesc, newAmt, newShared, participant.id, sessionId, onEditingChange, onUpdate]);
+  }, [newDesc, newAmt, newShared, participant.id, sessionId, onEditingChange, onItemAdded]);
 
   const toggleShare = useCallback((pid) => {
     setNewShared(prev =>
@@ -138,17 +140,15 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
           amount: item.amount,
           sharedWithParticipantIds: shareSelections,
         });
-        onUpdate();
+        if (onItemUpdated) onItemUpdated(item.id, { sharedWithParticipantIds: shareSelections });
       } catch (e) { Alert.alert('Error', 'Failed to update sharing'); }
     }
     setShareItem(null);
     setShareSelections(null);
-  }, [shareItemData, shareSelections, sessionId, onUpdate]);
+  }, [shareItemData, shareSelections, sessionId, onItemUpdated]);
 
   const initial = useMemo(() => (participant.name || '?')[0].toUpperCase(), [participant.name]);
-
   const avatarColor = useMemo(() => getAvatarColor(participant.name || ''), [participant.name]);
-
   const totalSpent = useMemo(
     () => myItems.reduce((sum, i) => sum + Number(i.amount), 0),
     [myItems]
@@ -156,7 +156,6 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
 
   return (
     <View style={styles.card}>
-      {/* Header: avatar + editable name + total spent */}
       <View style={styles.cardHeader}>
         <View style={[styles.avatar, { backgroundColor: avatarColor.bg }]}>
           <Text style={[styles.avatarText, { color: avatarColor.text }]}>{initial}</Text>
@@ -184,7 +183,6 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
         </View>
       </View>
 
-      {/* Expenses list */}
       {myItems.length > 0 && (
         <View style={styles.expensesList}>
           {myItems.map(item => (
@@ -201,7 +199,7 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
               overshootRight={false}
             >
               <View style={styles.expenseRow}>
-                <View style={styles.expenseLeft}>
+                <View style={styles.expenseDescArea}>
                   {editing?.type === 'desc' && editing?.itemId === item.id ? (
                     <TextInput
                       ref={editRef}
@@ -213,47 +211,54 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
                       selectTextOnFocus
                     />
                   ) : (
-                    <TouchableOpacity onPress={() => startEdit({ type: 'desc', itemId: item.id, orig: item }, item.description)}>
-                      <Text style={styles.descText} numberOfLines={1}>{item.description}</Text>
-                    </TouchableOpacity>
-                  )}
-                  <View style={styles.expenseMeta}>
-                    {editing?.type === 'amount' && editing?.itemId === item.id ? (
-                      <TextInput
-                        ref={editRef}
-                        style={[styles.inlineInput, styles.amtInput]}
-                        value={editVal}
-                        onChangeText={setEditVal}
-                        onBlur={saveEdit}
-                        onSubmitEditing={saveEdit}
-                        keyboardType="decimal-pad"
-                        selectTextOnFocus
-                      />
-                    ) : (
-                      <TouchableOpacity onPress={() => startEdit({ type: 'amount', itemId: item.id, orig: item }, String(item.amount))}>
-                        <Text style={styles.amtText}>${Number(item.amount).toFixed(2)}</Text>
-                      </TouchableOpacity>
-                    )}
                     <TouchableOpacity
-                      style={styles.shareBadge}
-                      onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
+                      style={styles.descTouch}
+                      onPress={() => startEdit({ type: 'desc', itemId: item.id, orig: item }, item.description)}
                     >
-                      <Text style={styles.shareText}>
-                        {(!item.sharedWithParticipantIds?.length || item.sharedWithParticipantIds.length === allParticipants.length) ? 'ALL' : `${item.sharedWithParticipantIds.length}/${allParticipants.length}`}
+                      <Text style={styles.descText} numberOfLines={1}>
+                        {item.description || <Text style={styles.noDescText}>No description</Text>}
                       </Text>
                     </TouchableOpacity>
-                  </View>
+                  )}
                 </View>
-                <TouchableOpacity onPress={() => deleteItem(item)} style={styles.deleteBtn}>
-                  <Text style={styles.deleteText}>✕</Text>
-                </TouchableOpacity>
+                <View style={styles.expenseRight}>
+                  {editing?.type === 'amount' && editing?.itemId === item.id ? (
+                    <TextInput
+                      ref={editRef}
+                      style={[styles.inlineInput, styles.amtInput]}
+                      value={editVal}
+                      onChangeText={setEditVal}
+                      onBlur={saveEdit}
+                      onSubmitEditing={saveEdit}
+                      keyboardType="decimal-pad"
+                      selectTextOnFocus
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.amtTouch}
+                      onPress={() => startEdit({ type: 'amount', itemId: item.id, orig: item }, String(item.amount))}
+                    >
+                      <Text style={styles.amtText}>${Number(item.amount).toFixed(2)}</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    style={styles.shareBadge}
+                    onPress={() => setShareItem(shareItem === item.id ? null : item.id)}
+                  >
+                    <Text style={styles.shareText}>
+                      {(!item.sharedWithParticipantIds?.length || item.sharedWithParticipantIds.length === allParticipants.length) ? 'ALL' : `${item.sharedWithParticipantIds.length}/${allParticipants.length}`}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => deleteItem(item)} style={styles.deleteBtn}>
+                    <Text style={styles.deleteText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </Swipeable>
           ))}
         </View>
       )}
 
-      {/* Share modal for an item */}
       <Modal visible={shareItem !== null} transparent animationType="fade">
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeShareModal}>
           <View style={styles.shareModal}>
@@ -281,7 +286,6 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
         </TouchableOpacity>
       </Modal>
 
-      {/* Share modal for add form */}
       <Modal visible={showAddShare} transparent animationType="fade">
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setShowAddShare(false)}>
           <View style={styles.shareModal}>
@@ -306,26 +310,27 @@ const ParticipantCard = memo(function ParticipantCard({ participant, items, allP
         </TouchableOpacity>
       </Modal>
 
-      {/* Add expense form */}
       {showAdd ? (
         <View style={styles.addForm}>
-          <TextInput
-            style={styles.addInput}
-            placeholder="Description"
-            placeholderTextColor="#94a3b8"
-            value={newDesc}
-            onChangeText={setNewDesc}
-            returnKeyType="done"
-            onSubmitEditing={Keyboard.dismiss}
-          />
-          <TextInput
-            style={styles.addInput}
-            placeholder="Amount"
-            placeholderTextColor="#94a3b8"
-            keyboardType="decimal-pad"
-            value={newAmt}
-            onChangeText={setNewAmt}
-          />
+          <View style={styles.addRow}>
+            <TextInput
+              style={styles.addDescInput}
+              placeholder="Description (optional)"
+              placeholderTextColor="#94a3b8"
+              value={newDesc}
+              onChangeText={setNewDesc}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
+            <TextInput
+              style={styles.addAmtInput}
+              placeholder="$ 0.00"
+              placeholderTextColor="#94a3b8"
+              keyboardType="decimal-pad"
+              value={newAmt}
+              onChangeText={setNewAmt}
+            />
+          </View>
           <View style={styles.splitRow}>
             <Text style={styles.splitLabel}>Split with</Text>
             <TouchableOpacity style={styles.splitBtn} onPress={() => setShowAddShare(true)}>
@@ -375,20 +380,23 @@ const styles = StyleSheet.create({
   },
   expensesList: { borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 6 },
   expenseRow: {
-    flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 6,
   },
-  expenseLeft: { flex: 1 },
+  expenseDescArea: { flex: 1, marginRight: 8 },
+  descTouch: { flexShrink: 1 },
   descText: { fontSize: 14, color: '#1e293b', fontWeight: '500' },
-  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 8 },
+  noDescText: { fontSize: 14, color: '#94a3b8', fontStyle: 'italic' },
+  expenseRight: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
   inlineInput: {
     fontSize: 14, color: '#1e293b', fontWeight: '500',
     borderBottomWidth: 1, borderBottomColor: '#0ea5e9', paddingVertical: 1,
-    maxWidth: 160,
   },
+  amtTouch: { },
   amtInput: { textAlign: 'right', minWidth: 70 },
   amtText: { fontSize: 13, fontWeight: '700', color: '#0ea5e9' },
   shareBadge: {
     backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
+    marginLeft: 6,
   },
   shareText: { fontSize: 11, color: '#64748b', fontWeight: '600' },
   totalTag: {
@@ -398,13 +406,21 @@ const styles = StyleSheet.create({
   },
   totalTagIcon: { fontSize: 11, color: '#0ea5e9', fontWeight: '800' },
   totalTagAmount: { fontSize: 14, fontWeight: '700', color: '#0ea5e9' },
-  deleteBtn: { padding: 6, marginLeft: 8 },
+  deleteBtn: { padding: 6, marginLeft: 4 },
   deleteText: { fontSize: 14, color: '#ef4444' },
   addForm: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 10 },
-  addInput: {
+  addRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  addDescInput: {
+    flex: 1,
     borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10,
     paddingVertical: 10, paddingHorizontal: 12, fontSize: 14,
-    backgroundColor: '#f8fafc', marginBottom: 8,
+    backgroundColor: '#f8fafc',
+  },
+  addAmtInput: {
+    width: 100,
+    borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10,
+    paddingVertical: 10, paddingHorizontal: 12, fontSize: 14,
+    backgroundColor: '#f8fafc', textAlign: 'right',
   },
   splitRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

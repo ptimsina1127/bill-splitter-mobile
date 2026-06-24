@@ -1,12 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Keyboard, Pressable,
 } from 'react-native';
 import api from '../api/client';
+import { getRecentSessions } from '../utils/sessionCache';
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
 export default function HomeScreen({ navigation }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recent, setRecent] = useState([]);
+
+  useEffect(() => {
+    getRecentSessions().then(setRecent);
+  }, []);
+
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      getRecentSessions().then(setRecent);
+    });
+    return unsub;
+  }, [navigation]);
 
   const handleJoin = async () => {
     const val = input.trim();
@@ -29,6 +53,10 @@ export default function HomeScreen({ navigation }) {
       setLoading(false);
     }
   };
+
+  const handleRecentTap = useCallback((s) => {
+    navigation.navigate('Session', { sessionId: s.id, sessionName: s.name });
+  }, [navigation]);
 
   return (
     <Pressable style={styles.container} onPress={Keyboard.dismiss}>
@@ -77,6 +105,19 @@ export default function HomeScreen({ navigation }) {
       >
         <Text style={styles.joinBtnText}>{loading ? 'Joining...' : 'Join Session'}</Text>
       </TouchableOpacity>
+
+      {recent.length > 0 && (
+        <View style={styles.recentSection}>
+          <Text style={styles.recentTitle}>Recent Sessions</Text>
+          {recent.map(s => (
+            <TouchableOpacity key={s.id} style={styles.recentRow} onPress={() => handleRecentTap(s)}>
+              <View style={styles.recentDot} />
+              <Text style={styles.recentName} numberOfLines={1}>{s.name}</Text>
+              <Text style={styles.recentTime}>{timeAgo(s.lastAccessed)}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -144,4 +185,28 @@ const styles = StyleSheet.create({
     borderRadius: 12, width: '100%', alignItems: 'center',
   },
   joinBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  recentSection: {
+    width: '100%', marginTop: 24,
+  },
+  recentTitle: {
+    fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  recentRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#fff', borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 14,
+    marginBottom: 6,
+    borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  recentDot: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e',
+    marginRight: 10,
+  },
+  recentName: {
+    flex: 1, fontSize: 15, fontWeight: '600', color: '#1e293b',
+  },
+  recentTime: {
+    fontSize: 12, color: '#94a3b8', marginLeft: 8,
+  },
 });
